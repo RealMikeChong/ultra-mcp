@@ -431,3 +431,7 @@ Or if installed globally via npm:
 3. Have good unit test coverage. For 3rd party dependencies which are hard to test, mock them. But don't write test for test. Just need good coverage for complicated logic.
 4. Do not use `as any` unless you don't have any better way to do that. For Zod to TS interface conversion if you cannot do it, define TS shadow types.
 5. We should not import TS files using .js like `import { ProviderManager } from '../providers/manager.js';` it should be `import { ProviderManager } from '../providers/manager.';` instead.
+
+## Development Best Practices
+
+- We don't require like 100% unit test coverage, but good to have like unit test coverages for critical logic so that we won't regress critical logic. 
