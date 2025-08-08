@@ -1,0 +1,9 @@
+services:
+  ultra-mcp-http:
+    build: .
+    ports:
+      - "9080:8080" # sse, mcp
+    volumes:
+      - ${XDG_CONFIG_HOME:-.config}:/home/ultra-mcp/.config
+    restart: unless-stopped
+    command: ["node", "dist/cli.js", "-t", "http"]

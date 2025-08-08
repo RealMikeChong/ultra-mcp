@@ -24,11 +24,11 @@ export class OpenAIProvider implements AIProvider {
     return { apiKey, baseURL };
   }
 
-  getDefaultModel(): string {
+  async getDefaultModel(): Promise<string> {
     return "o3"; // Default to O3 as requested
   }
 
-  listModels(): string[] {
+  async listModels(): Promise<string[]> {
     // Only list O3 model as per requirements
     return [
       "o3",
@@ -37,7 +37,7 @@ export class OpenAIProvider implements AIProvider {
 
   async generateText(request: AIRequest): Promise<AIResponse> {
     const { apiKey, baseURL } = await this.getCredentials();
-    const model = request.model || this.getDefaultModel();
+    const model = request.model || await this.getDefaultModel();
     const startTime = Date.now();
 
     // Track the request
@@ -112,7 +112,7 @@ export class OpenAIProvider implements AIProvider {
 
   async *streamText(request: AIRequest): AsyncGenerator<string, void, unknown> {
     const { apiKey, baseURL } = await this.getCredentials();
-    const model = request.model || this.getDefaultModel();
+    const model = request.model || await this.getDefaultModel();
     const startTime = Date.now();
 
     // Track the request

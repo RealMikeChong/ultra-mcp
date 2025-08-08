@@ -2,6 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { AdvancedToolsHandler, CodeReviewSchema, CodeAnalysisSchema, DebugSchema, PlanSchema, DocsSchema } from './handlers/advanced-tools';
 
+import { version } from '../package.json';
+
 // Import Zod schemas from ai-tools
 const DeepReasoningSchema = z.object({
   provider: z.enum(["openai", "gemini", "azure", "grok"]).optional().describe("AI provider to use (defaults to Azure if configured, otherwise OpenAI)"),
@@ -147,7 +149,7 @@ export function createServer() {
   const server = new McpServer(
     {
       name: "ultra-mcp",
-      version: "1.0.0",
+      version,
     },
     {
       capabilities: {

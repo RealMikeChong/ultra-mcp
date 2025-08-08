@@ -27,17 +27,46 @@ describe('OpenAICompatibleProvider', () => {
   });
 
   describe('getDefaultModel', () => {
-    it('should return default model', () => {
-      expect(provider.getDefaultModel()).toBe('gpt-oss-20b');
+    it('should return default model', async () => {
+      const defaultModel = await provider.getDefaultModel();
+      expect(defaultModel).toBe('gpt-oss-20b');
+    });
+
+    it('should return first configured model when models are provided', async () => {
+      mockConfigManager.getConfig = () => Promise.resolve({
+        openaiCompatible: {
+          apiKey: 'fake-key',
+          baseURL: 'http://localhost:11434/v1',
+          providerName: 'ollama' as const,
+          models: ['custom-model-1', 'custom-model-2'],
+        }
+      });
+
+      const defaultModel = await provider.getDefaultModel();
+      expect(defaultModel).toBe('custom-model-1');
     });
   });
 
   describe('listModels', () => {
-    it('should return both Ollama and OpenRouter models', () => {
-      const models = provider.listModels();
+    it('should return both Ollama and OpenRouter models by default', async () => {
+      const models = await provider.listModels();
       expect(models).toContain('llama3.1:8b');
       expect(models).toContain('gpt-4o');
       expect(models.length).toBeGreaterThan(10);
+    });
+
+    it('should return configured models when provided', async () => {
+      mockConfigManager.getConfig = () => Promise.resolve({
+        openaiCompatible: {
+          apiKey: 'fake-key',
+          baseURL: 'http://localhost:11434/v1',
+          providerName: 'ollama' as const,
+          models: ['custom-model-1', 'custom-model-2'],
+        }
+      });
+
+      const models = await provider.listModels();
+      expect(models).toEqual(['custom-model-1', 'custom-model-2']);
     });
   });
 

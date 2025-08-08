@@ -334,6 +334,30 @@ Ultra MCP stores configuration in your system's default config directory:
 - **Linux**: `~/.config/ultra-mcp/`
 - **Windows**: `%APPDATA%\ultra-mcp-nodejs\`
 
+## Transport Protocol Changes
+
+### SSE Deprecation (2025-03-26 Revision)
+
+**Important:** Server-Sent Events (SSE) transport has been deprecated in favor of StreamableHTTP transport as per MCP Protocol Revision 2025-03-26. Ultra MCP now uses modern HTTP transport by default.
+
+**Default Behavior:**
+- **Primary Transport**: StreamableHTTP via `/mcp` endpoint (enabled by default)
+- **Legacy Transport**: SSE via `/sse` and `/messages` endpoints (disabled by default)
+
+**Migration Guide:**
+
+If you're currently using SSE endpoints:
+1. **Recommended**: Update clients to use StreamableHTTP at `/mcp`
+2. **Temporary**: Enable SSE with `ULTRA_MCP_ENABLE_SSE=true` for backward compatibility
+3. **Legacy Support**: When enabled, SSE endpoints include deprecation headers
+
+**Benefits of StreamableHTTP:**
+- ✅ Better reliability (no persistent connections)
+- ✅ Improved error handling
+- ✅ No browser connection limits
+- ✅ Stateless operation (better for scaling)
+- ✅ DNS rebinding protection included
+
 ## Environment Variables
 
 You can also set API keys and base URLs via environment variables:
@@ -342,6 +366,10 @@ You can also set API keys and base URLs via environment variables:
 - `GOOGLE_API_KEY` / `GOOGLE_BASE_URL`
 - `AZURE_API_KEY` / `AZURE_BASE_URL` (base URL required for Azure)
 - `XAI_API_KEY` / `XAI_BASE_URL`
+
+**Protocol Configuration:**
+- `ULTRA_MCP_ENABLE_SSE=true` - Enable deprecated SSE endpoints for legacy client compatibility
+- `ULTRA_MCP_LOG=true` - Enable request logging with pino-http
 
 _Note: Configuration file takes precedence over environment variables._
 

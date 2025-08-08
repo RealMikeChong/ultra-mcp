@@ -34,11 +34,69 @@ describe('Config Schema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept valid Azure configuration', () => {
+    it('should accept valid Azure configuration with baseURL', () => {
       const config: Config = {
         azure: {
           apiKey: 'test-azure-key',
           baseURL: 'https://test.openai.azure.com',
+        },
+      };
+      
+      const result = ConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept valid Azure configuration with resourceName', () => {
+      const config: Config = {
+        azure: {
+          apiKey: 'test-azure-key',
+          resourceName: 'test-resource',
+        },
+      };
+      
+      const result = ConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept Azure configuration with models and defaultModel', () => {
+      const config: Config = {
+        azure: {
+          apiKey: 'test-azure-key',
+          resourceName: 'test-resource',
+          models: ['gpt-4o', 'gpt-4o-mini', 'gpt-35-turbo'],
+          defaultModel: 'gpt-4o',
+        },
+      };
+      
+      const result = ConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+      
+      if (result.success) {
+        expect(result.data.azure?.models).toEqual(['gpt-4o', 'gpt-4o-mini', 'gpt-35-turbo']);
+        expect(result.data.azure?.defaultModel).toBe('gpt-4o');
+      }
+    });
+
+    it('should accept Azure configuration with empty models array', () => {
+      const config: Config = {
+        azure: {
+          apiKey: 'test-azure-key',
+          resourceName: 'test-resource',
+          models: [],
+          defaultModel: 'gpt-4o',
+        },
+      };
+      
+      const result = ConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+    });
+
+    it('should make models and defaultModel optional for Azure', () => {
+      const config: Config = {
+        azure: {
+          apiKey: 'test-azure-key',
+          resourceName: 'test-resource',
+          // models and defaultModel are optional
         },
       };
       

@@ -129,11 +129,17 @@ export class OpenAICompatibleProvider implements AIProvider {
     return { apiKey, baseURL, providerName, models };
   }
 
-  getDefaultModel(): string {
-    return "gpt-oss-20b"; // Default to popular open source model
+  async getDefaultModel(): Promise<string> {
+    const { models } = await this.getCredentials();
+    return models?.[0] || "gpt-oss-20b"; // Use first configured model or default to popular open source model
   }
 
-  listModels(): string[] {
+  async listModels(): Promise<string[]> {
+    const { models } = await this.getCredentials();
+    if (models && models.length > 0) {
+      return models;
+    }
+    // Return default models if none configured
     // Latest Ollama models - top models for 2025
     const ollamaModels = [
       // DeepSeek R1 series (latest reasoning models)
@@ -217,7 +223,7 @@ export class OpenAICompatibleProvider implements AIProvider {
 
   async generateText(request: AIRequest): Promise<AIResponse> {
     const { apiKey, baseURL, providerName } = await this.getCredentials();
-    const model = request.model || this.getDefaultModel();
+    const model = request.model || await this.getDefaultModel();
     const startTime = Date.now();
 
     // Track the request
@@ -298,7 +304,7 @@ export class OpenAICompatibleProvider implements AIProvider {
 
   async *streamText(request: AIRequest): AsyncGenerator<string, void, unknown> {
     const { apiKey, baseURL, providerName } = await this.getCredentials();
-    const model = request.model || this.getDefaultModel();
+    const model = request.model || await this.getDefaultModel();
     const startTime = Date.now();
 
     // Track the request

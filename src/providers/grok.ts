@@ -24,11 +24,11 @@ export class GrokProvider implements AIProvider {
     return { apiKey, baseURL };
   }
 
-  getDefaultModel(): string {
+  async getDefaultModel(): Promise<string> {
     return "grok-4"; // Default to Grok-4 as requested
   }
 
-  listModels(): string[] {
+  async listModels(): Promise<string[]> {
     return [
       "grok-4",
       "grok-3",
@@ -40,7 +40,7 @@ export class GrokProvider implements AIProvider {
 
   async generateText(request: AIRequest): Promise<AIResponse> {
     const { apiKey, baseURL } = await this.getApiKey();
-    const model = request.model || this.getDefaultModel();
+    const model = request.model || await this.getDefaultModel();
     const startTime = Date.now();
     
     // Track the request
@@ -129,7 +129,7 @@ export class GrokProvider implements AIProvider {
 
   async *streamText(request: AIRequest): AsyncGenerator<string, void, unknown> {
     const { apiKey, baseURL } = await this.getApiKey();
-    const model = request.model || this.getDefaultModel();
+    const model = request.model || await this.getDefaultModel();
     const startTime = Date.now();
     
     // Track the request
