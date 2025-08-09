@@ -1,0 +1,9 @@
+services:
+  ultra-mcp-http:
+    build: .
+    ports:
+      - "9080:8080" # MCP endpoint
+    volumes:
+      - ./ultra-mcp/config:/app/.config/ultra-mcp
+    restart: unless-stopped
+    command: ["node", "dist/cli.js", "-t", "http"]

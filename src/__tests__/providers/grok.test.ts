@@ -18,9 +18,9 @@ describe('GrokProvider', () => {
     
     const provider = new GrokProvider(mockConfigManager as any);
     expect(provider.name).toBe('grok');
-    expect(provider.getDefaultModel()).toBe('grok-4');
+    expect(await provider.getDefaultModel()).toBe('grok-4');
     
-    const models = provider.listModels();
+    const models = await provider.listModels();
     expect(models).toContain('grok-4');
     expect(models.length).toBeGreaterThan(0);
   });

@@ -2,7 +2,7 @@
 
 import { program } from 'commander';
 import { runInteractiveConfig } from './config/interactive';
-import { startServer } from './start-server';
+import { stdioServer, httpServer } from './protocols/index.js';
 import { runDoctor } from './commands/doctor';
 import { runChat } from './commands/chat';
 import { runInstall } from './commands/install';
@@ -18,7 +18,7 @@ import {
   createDocsCommand 
 } from './commands/workflow-tools';
 import { showQuickApiKeyGuide } from './utils/api-key-guide';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync, appendFileSync } from 'fs';
 import { join } from 'path';
 
 // Read version from package.json
@@ -34,7 +34,7 @@ program
   .name('ultra-mcp')
   .description('Ultra MCP - Model Context Protocol server for OpenAI and Gemini')
   .version(version)
-  .addHelpText('after', '\nGetting Started:\n  1. Install for Claude Code: npx -y ultra-mcp install\n  2. Configure API keys: npx -y ultra-mcp config\n  3. Check health: npx -y ultra-mcp doctor')
+  .addHelpText('after', '\nGetting Started:\n  1. Install for Claude Code: npx -y ultra-mcp install\n  2. Configure API keys: npx -y ultra-mcp config\n  3. Check health: npx -y ultra-mcp doctor\n\nTransport Modes:\n  Default: stdio (local MCP protocol)\n  HTTP/SSE: TRANSPORT=sse ultra-mcp (remote/containerized)\n\nEnvironment Variables:\n  TRANSPORT=sse     Use Server-Sent Events transport (HTTP)\n  PORT=3000         HTTP server port (SSE mode only)\n  ALLOWED_ORIGINS   Comma-separated CORS origins (SSE mode only)')
   .on('--help', () => {
     showQuickApiKeyGuide();
   });
@@ -157,18 +157,24 @@ program.addCommand(createDocsCommand());
 
 // Default command (when no subcommand is provided)
 program
-  .action(async () => {
+  .option('-t, --transport <transport>', 'transport to run server on', 'stdio')
+  .option('-p, --port <port>', 'port to run server on', '8080')
+  .action(async (options) => {
     try {
       // Add debugging
-      const fs = require('fs');
-      fs.writeFileSync('/tmp/ultra-mcp-cli-start.log', `Starting server at ${new Date().toISOString()}\n`);
-      await startServer();
-      fs.appendFileSync('/tmp/ultra-mcp-cli-start.log', `Server started successfully at ${new Date().toISOString()}\n`);
+      writeFileSync('/tmp/ultra-mcp-cli-start.log', `Starting server at ${new Date().toISOString()}\n`);
+
+      if (options.transport === 'http') {
+        await httpServer.start(parseInt(options.port, 10));
+      } else {
+        await stdioServer.start();
+      }
+
+      appendFileSync('/tmp/ultra-mcp-cli-start.log', `Server started successfully at ${new Date().toISOString()}\n`);
     } catch (error) {
-      const fs = require('fs');
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : '';
-      fs.appendFileSync('/tmp/ultra-mcp-cli-start.log', `Server error: ${errorMessage}\n${errorStack}\n`);
+      appendFileSync('/tmp/ultra-mcp-cli-start.log', `Server error: ${errorMessage}\n${errorStack}\n`);
       console.error('Server error:', error);
       process.exit(1);
     }
