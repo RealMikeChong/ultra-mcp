@@ -23,11 +23,11 @@ export class GeminiProvider implements AIProvider {
     return { apiKey, baseURL };
   }
 
-  getDefaultModel(): string {
+  async getDefaultModel(): Promise<string> {
     return "gemini-2.5-pro"; // Default to Gemini 2.5 Pro as requested
   }
 
-  listModels(): string[] {
+  async listModels(): Promise<string[]> {
     // Only list Gemini 2.5 Pro as per requirements
     return [
       "gemini-2.5-pro",
@@ -36,7 +36,7 @@ export class GeminiProvider implements AIProvider {
 
   async generateText(request: AIRequest): Promise<AIResponse> {
     const { apiKey, baseURL } = await this.getApiKey();
-    const model = request.model || this.getDefaultModel();
+    const model = request.model || await this.getDefaultModel();
     const startTime = Date.now();
     
     // Enable Google Search by default for Gemini 2.5 Pro
@@ -127,7 +127,7 @@ export class GeminiProvider implements AIProvider {
 
   async *streamText(request: AIRequest): AsyncGenerator<string, void, unknown> {
     const { apiKey, baseURL } = await this.getApiKey();
-    const model = request.model || this.getDefaultModel();
+    const model = request.model || await this.getDefaultModel();
     const startTime = Date.now();
     
     const useSearchGrounding = request.useSearchGrounding !== undefined 

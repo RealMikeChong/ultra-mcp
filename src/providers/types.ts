@@ -28,6 +28,6 @@ export interface AIProvider {
   name: string;
   generateText(request: AIRequest): Promise<AIResponse>;
   streamText?(request: AIRequest): AsyncGenerator<string, void, unknown>;
-  listModels(): string[];
-  getDefaultModel(): string;
+  listModels(): Promise<string[]>;
+  getDefaultModel(): Promise<string>;
 }

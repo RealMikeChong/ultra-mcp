@@ -32,20 +32,19 @@ export class AzureOpenAIProvider implements AIProvider {
     return { apiKey, baseURL };
   }
 
-  getDefaultModel(): string {
-    return "o3"; // Default to O3 as requested
+  async getDefaultModel(): Promise<string> {
+    const config = await this.configManager.getConfig();
+    return config.azure?.defaultModel || "o3"; // Default to O3 as requested
   }
 
-  listModels(): string[] {
-    // Only list O3 model as per requirements
-    return [
-      "o3",
-    ];
+  async listModels(): Promise<string[]> {
+    const config = await this.configManager.getConfig();
+    return config.azure?.models || ["o3"]; // Default to O3 model as per requirements
   }
 
   async generateText(request: AIRequest): Promise<AIResponse> {
     const { apiKey, baseURL } = await this.getCredentials();
-    const model = request.model || this.getDefaultModel();
+    const model = request.model || await this.getDefaultModel();
     const startTime = Date.now();
     
     // Track the request
@@ -137,7 +136,7 @@ export class AzureOpenAIProvider implements AIProvider {
 
   async *streamText(request: AIRequest): AsyncGenerator<string, void, unknown> {
     const { apiKey, baseURL } = await this.getCredentials();
-    const model = request.model || this.getDefaultModel();
+    const model = request.model || await this.getDefaultModel();
     const startTime = Date.now();
     
     // Track the request

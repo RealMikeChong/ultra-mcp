@@ -27,14 +27,15 @@ describe('OpenAICompatibleProvider', () => {
   });
 
   describe('getDefaultModel', () => {
-    it('should return default model', () => {
-      expect(provider.getDefaultModel()).toBe('gpt-oss-20b');
+    it('should return default model', async () => {
+      const defaultModel = await provider.getDefaultModel();
+      expect(defaultModel).toBe('gpt-oss-20b');
     });
   });
 
   describe('listModels', () => {
-    it('should return both Ollama and OpenRouter models', () => {
-      const models = provider.listModels();
+    it('should return both Ollama and OpenRouter models', async () => {
+      const models = await provider.listModels();
       expect(models).toContain('llama3.1:8b');
       expect(models).toContain('gpt-4o');
       expect(models.length).toBeGreaterThan(10);
