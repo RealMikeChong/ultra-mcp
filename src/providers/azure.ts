@@ -12,24 +12,31 @@ export class AzureOpenAIProvider implements AIProvider {
     this.configManager = configManager;
   }
 
-  private async getCredentials(): Promise<{ apiKey: string; baseURL: string }> {
+  private async getCredentials(): Promise<{ apiKey: string; resourceName?: string; baseURL?: string }> {
     const config = await this.configManager.getConfig();
     const apiKey = config.azure?.apiKey || process.env.AZURE_API_KEY;
     
-    // Construct baseURL from resourceName or use environment variables for backward compatibility
-    let baseURL: string;
-    if (config.azure?.resourceName) {
-      baseURL = `https://${config.azure.resourceName}.openai.azure.com/`;
-    } else {
-      // Support legacy environment variables
-      baseURL = process.env.AZURE_BASE_URL || process.env.AZURE_ENDPOINT || '';
+    if (!apiKey) {
+      throw new Error("Azure OpenAI API key not configured. Run 'ultra config' or set AZURE_API_KEY environment variable.");
     }
 
-    if (!apiKey || !baseURL) {
-      throw new Error("Azure OpenAI credentials not configured. Run 'ultra config' or set AZURE_API_KEY and AZURE_RESOURCE_NAME/AZURE_BASE_URL environment variables.");
+    // Prefer resourceName over baseURL as per AI SDK documentation
+    let resourceName = config.azure?.resourceName || process.env.AZURE_RESOURCE_NAME;
+    let baseURL: string | undefined;
+
+    if (!resourceName) {
+      // Try to extract resourceName from legacy baseURL for backward compatibility
+      baseURL = config.azure?.baseURL || process.env.AZURE_BASE_URL || process.env.AZURE_ENDPOINT;
+      if (baseURL) {
+        resourceName = baseURL.match(/https:\/\/(.+?)\.openai\.azure\.com/)?.[1];
+      }
     }
 
-    return { apiKey, baseURL };
+    if (!resourceName && !baseURL) {
+      throw new Error("Azure resource name or base URL required. Run 'ultra config' or set AZURE_RESOURCE_NAME/AZURE_BASE_URL environment variables.");
+    }
+
+    return { apiKey, resourceName, baseURL };
   }
 
   getDefaultModel(): string {
@@ -44,7 +51,7 @@ export class AzureOpenAIProvider implements AIProvider {
   }
 
   async generateText(request: AIRequest): Promise<AIResponse> {
-    const { apiKey, baseURL } = await this.getCredentials();
+    const { apiKey, resourceName, baseURL } = await this.getCredentials();
     const model = request.model || this.getDefaultModel();
     const startTime = Date.now();
     
@@ -65,6 +72,7 @@ export class AzureOpenAIProvider implements AIProvider {
     
     const azure = createAzure({ 
       apiKey,
+      resourceName,
       baseURL,
     });
     const modelInstance = azure(model);
@@ -136,7 +144,7 @@ export class AzureOpenAIProvider implements AIProvider {
   }
 
   async *streamText(request: AIRequest): AsyncGenerator<string, void, unknown> {
-    const { apiKey, baseURL } = await this.getCredentials();
+    const { apiKey, resourceName, baseURL } = await this.getCredentials();
     const model = request.model || this.getDefaultModel();
     const startTime = Date.now();
     
@@ -157,6 +165,7 @@ export class AzureOpenAIProvider implements AIProvider {
     
     const azure = createAzure({ 
       apiKey,
+      resourceName,
       baseURL,
     });
     const modelInstance = azure(model);
