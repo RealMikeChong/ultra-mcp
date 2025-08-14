@@ -3,9 +3,9 @@ import { describe, it, expect } from 'vitest';
 describe('Server Startup', () => {
   it('should be able to import start-server module', async () => {
     // Just test that the module can be imported without errors
-    const { startServer } = await import('../start-server');
-    expect(startServer).toBeDefined();
-    expect(typeof startServer).toBe('function');
+    const { createServer } = await import('../server');
+    expect(createServer).toBeDefined();
+    expect(typeof createServer).toBe('function');
   });
 
   it('should be able to import config manager', async () => {

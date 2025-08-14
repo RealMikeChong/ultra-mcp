@@ -34,7 +34,7 @@ describe('Config Schema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept valid Azure configuration', () => {
+    it('should accept valid Azure configuration with baseURL', () => {
       const config: Config = {
         azure: {
           apiKey: 'test-azure-key',
@@ -45,6 +45,19 @@ describe('Config Schema', () => {
       const result = ConfigSchema.safeParse(config);
       expect(result.success).toBe(true);
     });
+
+    it('should accept valid Azure configuration with resourceName', () => {
+      const config: Config = {
+        azure: {
+          apiKey: 'test-azure-key',
+          resourceName: 'test-resource',
+        },
+      };
+      
+      const result = ConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+    });
+
 
     it('should accept configuration with all providers', () => {
       const config: Config = {

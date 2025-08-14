@@ -1,6 +1,36 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { AdvancedToolsHandler, CodeReviewSchema, CodeAnalysisSchema, DebugSchema, PlanSchema, DocsSchema } from './handlers/advanced-tools';
+import { CodeReviewSchema, CodeAnalysisSchema, DebugSchema, PlanSchema, DocsSchema } from './handlers/advanced-tools';
+
+import { version } from '../package.json';
+
+// Testable environment variable setting functions
+export const setEnvironmentVariablesFromConfig = (config: any) => {
+  if (config.openai?.apiKey) {
+    process.env.OPENAI_API_KEY = config.openai.apiKey;
+  }
+  if (config.openai?.baseURL) {
+    process.env.OPENAI_BASE_URL = config.openai.baseURL;
+  }
+  if (config.google?.apiKey) {
+    process.env.GOOGLE_API_KEY = config.google.apiKey;
+  }
+  if (config.google?.baseURL) {
+    process.env.GOOGLE_BASE_URL = config.google.baseURL;
+  }
+  if (config.azure?.apiKey) {
+    process.env.AZURE_API_KEY = config.azure.apiKey;
+  }
+  if (config.azure?.baseURL) {
+    process.env.AZURE_BASE_URL = config.azure.baseURL;
+  }
+  if (config.xai?.apiKey) {
+    process.env.XAI_API_KEY = config.xai.apiKey;
+  }
+  if (config.xai?.baseURL) {
+    process.env.XAI_BASE_URL = config.xai.baseURL;
+  }
+};
 
 // Import Zod schemas from ai-tools
 const DeepReasoningSchema = z.object({
@@ -147,7 +177,7 @@ export function createServer() {
   const server = new McpServer(
     {
       name: "ultra-mcp",
-      version: "1.0.0",
+      version,
     },
     {
       capabilities: {
@@ -169,30 +199,7 @@ export function createServer() {
       
       // Load config and set environment variables
       const config = await configManager.getConfig();
-      if (config.openai?.apiKey) {
-        process.env.OPENAI_API_KEY = config.openai.apiKey;
-      }
-      if (config.openai?.baseURL) {
-        process.env.OPENAI_BASE_URL = config.openai.baseURL;
-      }
-      if (config.google?.apiKey) {
-        process.env.GOOGLE_API_KEY = config.google.apiKey;
-      }
-      if (config.google?.baseURL) {
-        process.env.GOOGLE_BASE_URL = config.google.baseURL;
-      }
-      if (config.azure?.apiKey) {
-        process.env.AZURE_API_KEY = config.azure.apiKey;
-      }
-      if (config.azure?.baseURL) {
-        process.env.AZURE_BASE_URL = config.azure.baseURL;
-      }
-      if (config.xai?.apiKey) {
-        process.env.XAI_API_KEY = config.xai.apiKey;
-      }
-      if (config.xai?.baseURL) {
-        process.env.XAI_BASE_URL = config.xai.baseURL;
-      }
+      setEnvironmentVariablesFromConfig(config);
       
       const providerManager = new ProviderManager(configManager);
       handlers = new AIToolHandlers(providerManager);
