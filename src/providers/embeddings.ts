@@ -62,7 +62,9 @@ export class EmbeddingProvider {
         value: texts,
       });
       
-      return result.embeddings;
+      // For batch processing, result.embedding contains all embeddings
+      // Force proper type compatibility
+      return result.embedding as unknown as number[][];
     } catch (error) {
       logger.error(`Batch embedding error with ${this.config.provider}:`, error);
       throw new Error(`Failed to generate embeddings: ${error instanceof Error ? error.message : String(error)}`);

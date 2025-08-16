@@ -67,8 +67,8 @@ export function createPricingCommands(program: Command): void {
             if (pricing) {
               table.push([
                 modelName,
-                pricingService.formatCost(pricing.input_cost_per_token * 1000),
-                pricingService.formatCost(pricing.output_cost_per_token * 1000),
+                pricingService.formatCost((pricing.input_cost_per_token ?? 0) * 1000),
+                pricingService.formatCost((pricing.output_cost_per_token ?? 0) * 1000),
                 pricing.input_cost_per_token_above_200k_tokens 
                   ? pricingService.formatCost(pricing.input_cost_per_token_above_200k_tokens * 1000)
                   : '-',
@@ -96,8 +96,8 @@ export function createPricingCommands(program: Command): void {
           }
 
           console.log(chalk.cyan(`\n📊 Pricing for ${model}\n`));
-          console.log(`  Input cost:  ${pricingService.formatCost(pricing.input_cost_per_token * 1000)} per 1K tokens`);
-          console.log(`  Output cost: ${pricingService.formatCost(pricing.output_cost_per_token * 1000)} per 1K tokens`);
+          console.log(`  Input cost:  ${pricingService.formatCost((pricing.input_cost_per_token ?? 0) * 1000)} per 1K tokens`);
+          console.log(`  Output cost: ${pricingService.formatCost((pricing.output_cost_per_token ?? 0) * 1000)} per 1K tokens`);
           
           if (pricing.input_cost_per_token_above_200k_tokens) {
             console.log(chalk.gray('\n  Tiered Pricing (>200K tokens):'));

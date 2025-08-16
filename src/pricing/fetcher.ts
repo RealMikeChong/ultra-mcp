@@ -45,7 +45,12 @@ export class PricingFetcher {
         throw new Error(`Failed to fetch pricing data: ${response.statusText}`);
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
+      
+      // Type guard to ensure rawData is an object
+      if (typeof rawData !== 'object' || rawData === null) {
+        throw new Error('Invalid pricing data format received from API');
+      }
       
       // Filter out non-text models and invalid entries
       const filteredData: PricingData = {};
@@ -63,14 +68,25 @@ export class PricingFetcher {
           continue;
         }
         
+        // Skip non-object model data
+        if (typeof modelData !== 'object' || modelData === null) {
+          continue;
+        }
+        
         // Try to validate this model's data
         try {
           // Convert string numbers to numbers for token limits
           const processedData = {
             ...modelData,
-            max_tokens: typeof modelData.max_tokens === 'string' ? parseInt(modelData.max_tokens, 10) : modelData.max_tokens,
-            max_input_tokens: typeof modelData.max_input_tokens === 'string' ? parseInt(modelData.max_input_tokens, 10) : modelData.max_input_tokens,
-            max_output_tokens: typeof modelData.max_output_tokens === 'string' ? parseInt(modelData.max_output_tokens, 10) : modelData.max_output_tokens,
+            max_tokens: typeof (modelData as any).max_tokens === 'string' 
+              ? parseInt((modelData as any).max_tokens, 10) 
+              : (modelData as any).max_tokens,
+            max_input_tokens: typeof (modelData as any).max_input_tokens === 'string' 
+              ? parseInt((modelData as any).max_input_tokens, 10) 
+              : (modelData as any).max_input_tokens,
+            max_output_tokens: typeof (modelData as any).max_output_tokens === 'string' 
+              ? parseInt((modelData as any).max_output_tokens, 10) 
+              : (modelData as any).max_output_tokens,
           };
           
           // Only include if it has valid token pricing

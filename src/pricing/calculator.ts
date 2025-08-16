@@ -67,12 +67,20 @@ export class PricingCalculator {
   simplifyPricing(model: string, pricing: ModelPricing): SimplifiedPricing {
     return {
       model,
-      inputCostPerToken: pricing.input_cost_per_token,
-      outputCostPerToken: pricing.output_cost_per_token,
+      inputCostPerToken: pricing.input_cost_per_token ?? 0,
+      outputCostPerToken: pricing.output_cost_per_token ?? 0,
       inputCostPerTokenAbove200k: pricing.input_cost_per_token_above_200k_tokens,
       outputCostPerTokenAbove200k: pricing.output_cost_per_token_above_200k_tokens,
-      maxInputTokens: pricing.max_input_tokens || pricing.max_tokens,
-      maxOutputTokens: pricing.max_output_tokens || pricing.max_tokens,
+      maxInputTokens: typeof pricing.max_input_tokens === 'number' 
+        ? pricing.max_input_tokens 
+        : typeof pricing.max_tokens === 'number' 
+          ? pricing.max_tokens 
+          : undefined,
+      maxOutputTokens: typeof pricing.max_output_tokens === 'number' 
+        ? pricing.max_output_tokens 
+        : typeof pricing.max_tokens === 'number' 
+          ? pricing.max_tokens 
+          : undefined,
     };
   }
 

@@ -1,4 +1,6 @@
-import { get_encoding, TikTokenEncoder } from 'tiktoken';
+import { get_encoding, TiktokenEncoding } from 'tiktoken';
+
+type TikTokenEncoder = ReturnType<typeof get_encoding>;
 
 export class TokenizerManager {
   private static encoders = new Map<string, TikTokenEncoder>();
@@ -23,7 +25,7 @@ export class TokenizerManager {
     }
 
     if (!this.encoders.has(encodingName)) {
-      this.encoders.set(encodingName, get_encoding(encodingName));
+      this.encoders.set(encodingName, get_encoding(encodingName as TiktokenEncoding));
     }
 
     return this.encoders.get(encodingName)!;
@@ -92,7 +94,7 @@ export class TokenizerManager {
       }
       
       const truncatedTokens = tokens.slice(0, maxTokens);
-      return encoder.decode(truncatedTokens);
+      return new TextDecoder().decode(encoder.decode(truncatedTokens));
     } catch (error) {
       // Fallback to character-based truncation
       console.warn('Tiktoken failed for truncation, falling back to character estimation:', error);

@@ -1,9 +1,9 @@
-import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch';
+import type { CreateExpressContextOptions } from '@trpc/server/adapters/express';
 
-export function createContext({ req, resHeaders }: FetchCreateContextFnOptions) {
+export function createContext({ req, res }: CreateExpressContextOptions) {
   return {
     req,
-    resHeaders,
+    res,
   };
 }
 

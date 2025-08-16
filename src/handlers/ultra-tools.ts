@@ -181,16 +181,12 @@ Provide your critical analysis:`;
   const finalPrompt = challengePrompt + conversationContext;
 
   // Use provider manager to get response
-  const aiProvider = providerManager.getProvider(provider);
-  const result = await aiProvider.generateResponse({
+  const aiProvider = await providerManager.getProvider(provider);
+  const result = await aiProvider.generateText({
+    prompt: finalPrompt,
     model: model || aiProvider.getDefaultModel(),
-    messages: [
-      {
-        role: 'user',
-        content: finalPrompt
-      }
-    ],
-    stream: false
+    temperature: 0.7,
+    useSearchGrounding: false,
   });
 
   // Save to conversation if sessionId provided
@@ -201,7 +197,7 @@ Provide your critical analysis:`;
       await conversationMemory.addMessage(
         sessionId, 
         'assistant', 
-        result.content, 
+        result.text, 
         'challenge',
         undefined,
         { provider, model: result.model }
@@ -215,7 +211,7 @@ Provide your critical analysis:`;
     content: [
       {
         type: 'text',
-        text: `## Critical Analysis\n\n${result.content}\n\n---\n*Analysis provided by ${result.model} via critical thinking prompt to prevent reflexive agreement.*`
+        text: `## Critical Analysis\n\n${result.text}\n\n---\n*Analysis provided by ${result.model} via critical thinking prompt to prevent reflexive agreement.*`
       }
     ]
   };
@@ -255,12 +251,16 @@ export async function handleContinuation(args: any, providerManager: ProviderMan
     content: prompt + fileContext
   });
 
+  // Build a single prompt from the conversation history
+  const conversationHistory = messages.map(msg => `${msg.role}: ${msg.content}`).join('\n\n');
+  
   // Use provider manager to get response
-  const aiProvider = providerManager.getProvider(provider);
-  const result = await aiProvider.generateResponse({
+  const aiProvider = await providerManager.getProvider(provider);
+  const result = await aiProvider.generateText({
+    prompt: conversationHistory,
     model: model || aiProvider.getDefaultModel(),
-    messages,
-    stream: false
+    temperature: 0.7,
+    useSearchGrounding: false
   });
 
   // Save new messages to conversation
@@ -268,7 +268,7 @@ export async function handleContinuation(args: any, providerManager: ProviderMan
   await conversationMemory.addMessage(
     sessionId,
     'assistant', 
-    result.content,
+    result.text,
     'continuation',
     undefined,
     { provider, model: result.model, continuedFromSession: true }
@@ -278,7 +278,7 @@ export async function handleContinuation(args: any, providerManager: ProviderMan
     content: [
       {
         type: 'text',
-        text: `## Continued Conversation\n\nSession: ${sessionId}\nContext: ${context.messages.length} messages, ${context.files.length} files\n\n${result.content}`
+        text: `## Continued Conversation\n\nSession: ${sessionId}\nContext: ${context.messages.length} messages, ${context.files.length} files\n\n${result.text}`
       }
     ]
   };
@@ -304,8 +304,8 @@ export async function handleSession(args: any) {
     }
 
     case 'list': {
-      const sessions = await conversationMemory.listSessions(status, 20);
-      const sessionList = sessions.map(s => 
+      const sessionsResult = await conversationMemory.listSessions(status, 20);
+      const sessionList = sessionsResult.sessions.map((s: any) => 
         `- **${s.name || s.id}** (${s.id})\n  Messages: ${s.messageCount}, Files: ${s.fileCount}, Tokens: ${s.totalTokens}, Cost: $${s.totalCost.toFixed(4)}\n  Last Activity: ${s.lastActivity.toISOString()}`
       ).join('\n\n');
 

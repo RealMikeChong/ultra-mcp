@@ -449,7 +449,11 @@ export function createServer() {
     inputSchema: IndexVectorsSchema.shape,
   }, async (args) => {
     const { handleIndexVectors } = await import("./handlers/vector");
-    const result = await handleIndexVectors(args);
+    const result = await handleIndexVectors({
+      path: args.path || process.cwd(),
+      provider: args.provider,
+      force: args.force || false,
+    });
     return {
       content: [
         {
@@ -466,7 +470,14 @@ export function createServer() {
     inputSchema: SearchVectorsSchema.shape,
   }, async (args) => {
     const { handleSearchVectors } = await import("./handlers/vector");
-    const result = await handleSearchVectors(args);
+    const result = await handleSearchVectors({
+      query: args.query,
+      path: args.path || process.cwd(),
+      provider: args.provider,
+      limit: args.limit || 10,
+      similarityThreshold: args.similarityThreshold || 0.7,
+      filesOnly: args.filesOnly || false,
+    });
     return {
       content: [
         {
@@ -483,7 +494,9 @@ export function createServer() {
     inputSchema: ClearVectorsSchema.shape,
   }, async (args) => {
     const { handleClearVectors } = await import("./handlers/vector");
-    const result = await handleClearVectors(args);
+    const result = await handleClearVectors({
+      path: args.path || process.cwd(),
+    });
     return {
       content: [
         {
@@ -496,17 +509,22 @@ export function createServer() {
 
   // Register prompts for all tools
 
-  // Core AI tool prompts
+  // Core AI tool prompts (using string-only schemas for MCP compatibility)
   server.registerPrompt("deep-reasoning", {
-    title: "Deep Reasoning",
+    title: "Deep Reasoning", 
     description: "Use advanced AI reasoning to solve complex problems requiring deep analysis",
-    argsSchema: DeepReasoningSchema.shape,
+    argsSchema: {
+      prompt: z.string(),
+      provider: z.string().optional(),
+      model: z.string().optional(),
+      systemPrompt: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Use advanced AI reasoning to solve this complex problem: ${args.prompt}${args.provider ? ` (using ${args.provider} provider)` : ''}${args.reasoningEffort ? ` with ${args.reasoningEffort} reasoning effort` : ''}${args.systemPrompt ? `\n\nSystem context: ${args.systemPrompt}` : ''}`
+        text: `Use advanced AI reasoning to solve this complex problem: ${args.prompt}${args.provider ? ` (using ${args.provider} provider)` : ''}${args.systemPrompt ? `\n\nSystem context: ${args.systemPrompt}` : ''}`
       }
     }]
   }));
@@ -514,13 +532,18 @@ export function createServer() {
   server.registerPrompt("investigate", {
     title: "Investigate Topic",
     description: "Thoroughly investigate any topic with configurable depth of analysis",
-    argsSchema: InvestigationSchema.shape,
+    argsSchema: {
+      topic: z.string(),
+      provider: z.string().optional(),
+      model: z.string().optional(),
+      depth: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Investigate this topic with ${args.depth} analysis: ${args.topic}${args.provider ? ` (using ${args.provider} provider)` : ''}${args.enableSearch ? ' (include web search results)' : ''}`
+        text: `Investigate this topic with ${args.depth || 'standard'} analysis: ${args.topic}${args.provider ? ` (using ${args.provider} provider)` : ''}`
       }
     }]
   }));
@@ -528,13 +551,19 @@ export function createServer() {
   server.registerPrompt("research", {
     title: "Comprehensive Research",
     description: "Conduct thorough research on any topic with multiple output formats",
-    argsSchema: ResearchSchema.shape,
+    argsSchema: {
+      query: z.string(),
+      provider: z.string().optional(),
+      model: z.string().optional(),
+      outputFormat: z.string().optional(),
+      sources: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Research this topic thoroughly: ${args.query}${args.outputFormat ? ` (format: ${args.outputFormat})` : ''}${args.sources && args.sources.length > 0 ? `\n\nFocus on these sources: ${args.sources.join(', ')}` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
+        text: `Research this topic thoroughly: ${args.query}${args.outputFormat ? ` (format: ${args.outputFormat})` : ''}${args.sources ? `\n\nFocus on these sources: ${args.sources}` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
       }
     }]
   }));
@@ -555,15 +584,20 @@ export function createServer() {
 
   // Code tool prompts
   server.registerPrompt("analyze-code", {
-    title: "Analyze Code",
+    title: "Analyze Code", 
     description: "Analyze code for architecture, performance, security, or quality issues",
-    argsSchema: AnalyzeCodeSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      files: z.string().optional(),
+      focus: z.string().optional(),
+      provider: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Analyze this code: ${args.task}${args.files && args.files.length > 0 ? `\n\nFocus on these files: ${args.files.join(', ')}` : ''}${args.focus ? ` (analysis focus: ${args.focus})` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
+        text: `Analyze this code: ${args.task}${args.files ? `\n\nFocus on these files: ${args.files}` : ''}${args.focus ? ` (analysis focus: ${args.focus})` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
       }
     }]
   }));
@@ -571,13 +605,18 @@ export function createServer() {
   server.registerPrompt("review-code", {
     title: "Review Code",
     description: "Review code for bugs, security issues, performance, or style problems",
-    argsSchema: ReviewCodeSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      files: z.string().optional(),
+      focus: z.string().optional(),
+      provider: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Review this code: ${args.task}${args.files && args.files.length > 0 ? `\n\nFocus on these files: ${args.files.join(', ')}` : ''}${args.focus ? ` (review focus: ${args.focus})` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
+        text: `Review this code: ${args.task}${args.files ? `\n\nFocus on these files: ${args.files}` : ''}${args.focus ? ` (review focus: ${args.focus})` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
       }
     }]
   }));
@@ -585,13 +624,18 @@ export function createServer() {
   server.registerPrompt("debug-issue", {
     title: "Debug Issue",
     description: "Debug technical issues with systematic problem-solving approach",
-    argsSchema: DebugIssueSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      files: z.string().optional(),
+      symptoms: z.string().optional(),
+      provider: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Debug this issue: ${args.task}${args.files && args.files.length > 0 ? `\n\nRelevant files: ${args.files.join(', ')}` : ''}${args.symptoms ? `\n\nSymptoms observed: ${args.symptoms}` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
+        text: `Debug this issue: ${args.task}${args.files ? `\n\nRelevant files: ${args.files}` : ''}${args.symptoms ? `\n\nSymptoms observed: ${args.symptoms}` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
       }
     }]
   }));
@@ -599,7 +643,12 @@ export function createServer() {
   server.registerPrompt("plan-feature", {
     title: "Plan Feature",
     description: "Plan feature implementation with comprehensive step-by-step approach",
-    argsSchema: PlanFeatureSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      requirements: z.string().optional(),
+      scope: z.string().optional(),
+      provider: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
@@ -613,13 +662,18 @@ export function createServer() {
   server.registerPrompt("generate-docs", {
     title: "Generate Documentation",
     description: "Generate comprehensive documentation in various formats",
-    argsSchema: GenerateDocsSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      files: z.string().optional(),
+      format: z.string().optional(),
+      provider: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Generate documentation for: ${args.task}${args.files && args.files.length > 0 ? `\n\nFiles to document: ${args.files.join(', ')}` : ''}${args.format ? ` (format: ${args.format})` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
+        text: `Generate documentation for: ${args.task}${args.files ? `\n\nFiles to document: ${args.files}` : ''}${args.format ? ` (format: ${args.format})` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
       }
     }]
   }));
@@ -628,7 +682,12 @@ export function createServer() {
   server.registerPrompt("challenge", {
     title: "Challenge Statement",
     description: "Challenge a statement or assumption with critical thinking",
-    argsSchema: ChallengeSchema.shape,
+    argsSchema: {
+      prompt: z.string(),
+      provider: z.string().optional(),
+      model: z.string().optional(),
+      sessionId: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
@@ -876,21 +935,32 @@ export function createServer() {
   server.registerPrompt("ultra-continuation", {
     title: "Zen Continuation",
     description: "Continue conversations with session context revival",
-    argsSchema: ZenContinuationSchema.shape,
+    argsSchema: {
+      sessionId: z.string(),
+      prompt: z.string(),
+      provider: z.string().optional(),
+      model: z.string().optional(),
+      includeFiles: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Continue conversation from session ${args.sessionId}: ${args.prompt}${args.includeFiles === false ? ' (without files)' : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
+        text: `Continue conversation from session ${args.sessionId}: ${args.prompt}${args.includeFiles === 'false' ? ' (without files)' : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
       }
     }]
   }));
 
   server.registerPrompt("ultra-session", {
-    title: "Zen Session Management",
+    title: "Zen Session Management", 
     description: "Manage conversation sessions for persistent memory",
-    argsSchema: ZenSessionSchema.shape,
+    argsSchema: {
+      action: z.string(),
+      sessionId: z.string().optional(),
+      name: z.string().optional(),
+      status: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
@@ -904,7 +974,13 @@ export function createServer() {
   server.registerPrompt("ultra-budget", {
     title: "Zen Budget Control",
     description: "Manage conversation budgets for cost and token control",
-    argsSchema: ZenBudgetSchema.shape,
+    argsSchema: {
+      action: z.string(),
+      sessionId: z.string(),
+      maxTokens: z.string().optional(),
+      maxCostUsd: z.string().optional(),
+      maxDurationMs: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",

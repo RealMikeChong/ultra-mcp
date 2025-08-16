@@ -123,7 +123,9 @@ export class PricingService {
     const cacheInfo = await this.fetcher.getCacheInfo();
     
     return {
-      ...cacheInfo,
+      exists: cacheInfo?.exists ?? false,
+      age: cacheInfo?.age,
+      expired: cacheInfo?.expired,
       lastInMemoryFetch: this.lastFetchTime ? Date.now() - this.lastFetchTime : undefined,
     };
   }
