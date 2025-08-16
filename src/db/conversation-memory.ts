@@ -92,51 +92,59 @@ export class ConversationMemoryManager {
     parentMessageId?: string,
     metadata?: Record<string, any>
   ): Promise<ConversationMessageSelect> {
-    try {
-      const db = await this.getDb();
-      
-      // Use transaction to prevent race conditions
-      const result = await db.transaction(async (tx) => {
-        // Get next message index within transaction
-        const lastMessage = await tx
-          .select({ messageIndex: conversationMessages.messageIndex })
-          .from(conversationMessages)
-          .where(eq(conversationMessages.sessionId, sessionId))
-          .orderBy(desc(conversationMessages.messageIndex))
-          .limit(1);
+    const db = await this.getDb();
+    const maxAttempts = 5;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const result = await db.transaction(async (tx) => {
+          // Get next message index within transaction
+          const lastMessage = await tx
+            .select({ messageIndex: conversationMessages.messageIndex })
+            .from(conversationMessages)
+            .where(eq(conversationMessages.sessionId, sessionId))
+            .orderBy(desc(conversationMessages.messageIndex))
+            .limit(1);
 
-        const messageIndex = (lastMessage[0]?.messageIndex ?? -1) + 1;
+          const messageIndex = (lastMessage[0]?.messageIndex ?? -1) + 1;
 
-        const [message] = await tx
-          .insert(conversationMessages)
-          .values({
-            sessionId,
-            messageIndex,
-            role,
-            content,
-            toolName,
-            parentMessageId,
-            metadata
-          })
-          .returning();
+          const [message] = await tx
+            .insert(conversationMessages)
+            .values({
+              sessionId,
+              messageIndex,
+              role,
+              content,
+              toolName,
+              parentMessageId,
+              metadata
+            })
+            .returning();
 
-        // Update session last message time
-        await tx
-          .update(sessions)
-          .set({ 
-            lastMessageAt: new Date(),
-            updatedAt: new Date()
-          })
-          .where(eq(sessions.id, sessionId));
+          // Update session last message time
+          await tx
+            .update(sessions)
+            .set({ 
+              lastMessageAt: new Date(),
+              updatedAt: new Date()
+            })
+            .where(eq(sessions.id, sessionId));
 
-        return message;
-      });
-
-      return result;
-    } catch (error) {
-      logger.error('Failed to add message to conversation:', error);
-      throw new Error(`Failed to add message: ${error instanceof Error ? error.message : String(error)}`);
+          return message;
+        });
+        return result;
+      } catch (error: any) {
+        const msg = (error && error.message) ? String(error.message) : String(error);
+        const isUniqueConflict = msg.includes('UNIQUE') || msg.includes('unique') || msg.includes('session_message_idx');
+        if (isUniqueConflict && attempt < maxAttempts) {
+          // Brief backoff before retry
+          await new Promise((r) => setTimeout(r, 10 * attempt));
+          continue;
+        }
+        logger.error('Failed to add message to conversation:', error);
+        throw new Error(`Failed to add message: ${msg}`);
+      }
     }
+    throw new Error('Failed to add message: retries exhausted');
   }
 
   /**

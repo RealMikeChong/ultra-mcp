@@ -32,10 +32,22 @@ export async function runMigrations(): Promise<void> {
 
 // Auto-run migrations when this module is imported
 // This ensures the database is always up-to-date
+let _migrationsDone = false;
+let _migrationsPromise: Promise<void> | null = null;
 export async function ensureDatabaseReady(): Promise<void> {
-  try {
-    await runMigrations();
-  } catch (error) {
-    logger.warn('Failed to run migrations, database may not be initialized:', error instanceof Error ? error.message : String(error));
+  if (_migrationsDone) return;
+  if (_migrationsPromise) {
+    return _migrationsPromise;
   }
+  _migrationsPromise = (async () => {
+    try {
+      await runMigrations();
+      _migrationsDone = true;
+    } catch (error) {
+      logger.warn('Failed to run migrations, database may not be initialized:', error instanceof Error ? error.message : String(error));
+    } finally {
+      _migrationsPromise = null;
+    }
+  })();
+  return _migrationsPromise;
 }

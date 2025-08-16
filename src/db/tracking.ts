@@ -78,49 +78,22 @@ export interface TrackingData {
 
 export async function trackLLMRequest(data: TrackingData): Promise<string> {
   const requestId = crypto.randomUUID();
-  
-  // In test environment, wait for the operation to complete
-  if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
-    try {
-      await ensureDatabaseReady();
-      const db = await getDatabase();
-      
-      await db.insert(llmRequests).values({
-        id: requestId,
-        timestamp: new Date(data.startTime),
-        provider: data.provider,
-        model: data.model,
-        toolName: data.toolName,
-        requestData: data.requestData,
-        status: 'success', // Will update when completed
-        durationMs: 0, // Will update when completed
-      }).execute();
-    } catch (error) {
-      logger.warn('Failed to track LLM request:', error instanceof Error ? error.message : String(error));
-    }
-  } else {
-    // Async, non-blocking database write in production
-    setImmediate(async () => {
-      try {
-        await ensureDatabaseReady();
-        const db = await getDatabase();
-        
-        await db.insert(llmRequests).values({
-          id: requestId,
-          timestamp: new Date(data.startTime),
-          provider: data.provider,
-          model: data.model,
-          toolName: data.toolName,
-          requestData: data.requestData,
-          status: 'success', // Will update when completed
-          durationMs: 0, // Will update when completed
-        }).execute();
-      } catch (error) {
-        logger.warn('Failed to track LLM request:', error instanceof Error ? error.message : String(error));
-      }
-    });
+  try {
+    await ensureDatabaseReady();
+    const db = await getDatabase();
+    await db.insert(llmRequests).values({
+      id: requestId,
+      timestamp: new Date(data.startTime),
+      provider: data.provider,
+      model: data.model,
+      toolName: data.toolName,
+      requestData: data.requestData,
+      status: 'success', // Will update when completed
+      durationMs: 0, // Will update when completed
+    }).execute();
+  } catch (error) {
+    logger.warn('Failed to track LLM request:', error instanceof Error ? error.message : String(error));
   }
-  
   return requestId;
 }
 
@@ -142,96 +115,46 @@ export interface CompletionData {
 }
 
 export async function updateLLMCompletion(data: CompletionData): Promise<void> {
-  // In test environment, wait for the operation to complete
-  if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
-    try {
-      await ensureDatabaseReady();
-      const db = await getDatabase();
+  try {
+    await ensureDatabaseReady();
+    const db = await getDatabase();
+    
+    const startTime = await getRequestStartTime(data.requestId);
+    const updateData: Partial<LlmRequest> = {
+      responseData: data.responseData,
+      status: data.error ? 'error' : 'success',
+      errorMessage: data.error,
+      finishReason: data.finishReason,
+      durationMs: data.endTime - startTime,
+    };
+    
+    if (data.usage) {
+      updateData.inputTokens = data.usage.promptTokens;
+      updateData.outputTokens = data.usage.completionTokens;
+      updateData.totalTokens = data.usage.totalTokens;
       
-      const startTime = await getRequestStartTime(data.requestId);
-      const updateData: Partial<LlmRequest> = {
-        responseData: data.responseData,
-        status: data.error ? 'error' : 'success',
-        errorMessage: data.error,
-        finishReason: data.finishReason,
-        durationMs: data.endTime - startTime,
-      };
-      
-      if (data.usage) {
-        updateData.inputTokens = data.usage.promptTokens;
-        updateData.outputTokens = data.usage.completionTokens;
-        updateData.totalTokens = data.usage.totalTokens;
-        
-        // Get model name for cost estimation
-        const request = await db.select({ model: llmRequests.model })
-          .from(llmRequests)
-          .where(eq(llmRequests.id, data.requestId))
-          .limit(1)
-          .execute();
-          
-        if (request.length > 0 && request[0].model) {
-          updateData.estimatedCost = await estimateCost(
-            request[0].model,
-            data.usage.promptTokens,
-            data.usage.completionTokens
-          );
-        }
-      }
-      
-      await db.update(llmRequests)
-        .set(updateData)
+      // Get model name for cost estimation
+      const request = await db.select({ model: llmRequests.model })
+        .from(llmRequests)
         .where(eq(llmRequests.id, data.requestId))
+        .limit(1)
         .execute();
         
-    } catch (error) {
-      logger.warn('Failed to update LLM completion:', error instanceof Error ? error.message : String(error));
-    }
-  } else {
-    // Async, non-blocking database write in production
-    setImmediate(async () => {
-      try {
-        await ensureDatabaseReady();
-        const db = await getDatabase();
-        
-        const startTime = await getRequestStartTime(data.requestId);
-        const updateData: Partial<LlmRequest> = {
-          responseData: data.responseData,
-          status: data.error ? 'error' : 'success',
-          errorMessage: data.error,
-          finishReason: data.finishReason,
-          durationMs: data.endTime - startTime,
-        };
-        
-        if (data.usage) {
-          updateData.inputTokens = data.usage.promptTokens;
-          updateData.outputTokens = data.usage.completionTokens;
-          updateData.totalTokens = data.usage.totalTokens;
-          
-          // Get model name for cost estimation
-          const request = await db.select({ model: llmRequests.model })
-            .from(llmRequests)
-            .where(eq(llmRequests.id, data.requestId))
-            .limit(1)
-            .execute();
-            
-          if (request.length > 0 && request[0].model) {
-            updateData.estimatedCost = await estimateCost(
-              request[0].model,
-              data.usage.promptTokens,
-              data.usage.completionTokens
-            );
-          }
-        }
-        
-        await db.update(llmRequests)
-          .set(updateData)
-          .where(eq(llmRequests.id, data.requestId))
-          .execute();
-          
-      } catch (error) {
-        logger.warn('Failed to update LLM completion:', error instanceof Error ? error.message : String(error));
+      if (request.length > 0 && request[0].model) {
+        updateData.estimatedCost = await estimateCost(
+          request[0].model,
+          data.usage.promptTokens,
+          data.usage.completionTokens
+        );
       }
-    });
+    }
+    
+    await db.update(llmRequests)
+      .set(updateData)
+      .where(eq(llmRequests.id, data.requestId))
+      .execute();
+  } catch (error) {
+    logger.warn('Failed to update LLM completion:', error instanceof Error ? error.message : String(error));
   }
 }
 
