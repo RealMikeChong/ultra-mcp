@@ -701,13 +701,19 @@ export function createServer() {
   server.registerPrompt("consensus", {
     title: "Multi-Model Consensus",
     description: "Get consensus from multiple AI models on a proposal or decision",
-    argsSchema: ConsensusSchema.shape,
+    // Use string-only schema for MCP compatibility
+    argsSchema: {
+      proposal: z.string(),
+      models: z.string(), // e.g., "gpt-4:for, gemini:neutral"
+      files: z.string().optional(),
+      provider: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Get multi-model consensus on this proposal: ${args.proposal}\n\nConsult these models: ${args.models.map(m => `${m.model} (stance: ${m.stance})`).join(', ')}${args.files && args.files.length > 0 ? `\n\nRelevant files for context: ${args.files.join(', ')}` : ''}`
+        text: `Get multi-model consensus on this proposal: ${args.proposal}\n\nConsult these models: ${args.models}${args.files ? `\n\nRelevant files for context: ${args.files}` : ''}`
       }
     }]
   }));
@@ -715,7 +721,20 @@ export function createServer() {
   server.registerPrompt("planner", {
     title: "Multi-Step Planning",
     description: "Create detailed multi-step plans with revisions and branching support",
-    argsSchema: PlannerSchema.shape,
+    // String-only schema
+    argsSchema: {
+      task: z.string(),
+      stepNumber: z.string(),
+      totalSteps: z.string(),
+      scope: z.string().optional(),
+      requirements: z.string().optional(),
+      isRevision: z.string().optional(),
+      revisingStep: z.string().optional(),
+      isBranching: z.string().optional(),
+      branchingFrom: z.string().optional(),
+      branchId: z.string().optional(),
+      provider: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
@@ -729,13 +748,20 @@ export function createServer() {
   server.registerPrompt("precommit", {
     title: "Pre-commit Validation",
     description: "Validate code changes before committing with comprehensive checks",
-    argsSchema: PrecommitSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      files: z.string().optional(),
+      focus: z.string().optional(),
+      compareTo: z.string().optional(),
+      severity: z.string().optional(),
+      provider: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Validate these changes before commit: ${args.task}${args.files && args.files.length > 0 ? `\n\nFiles to check: ${args.files.join(', ')}` : ''}${args.focus ? ` (focus: ${args.focus})` : ''}${args.compareTo ? `\n\nCompare against: ${args.compareTo}` : ''}${args.severity ? ` (minimum severity: ${args.severity})` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
+        text: `Validate these changes before commit: ${args.task}${args.files ? `\n\nFiles to check: ${args.files}` : ''}${args.focus ? ` (focus: ${args.focus})` : ''}${args.compareTo ? `\n\nCompare against: ${args.compareTo}` : ''}${args.severity ? ` (minimum severity: ${args.severity})` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
       }
     }]
   }));
@@ -743,13 +769,21 @@ export function createServer() {
   server.registerPrompt("secaudit", {
     title: "Security Audit", 
     description: "Comprehensive security audit for code and configurations",
-    argsSchema: SecauditSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      files: z.string().optional(),
+      focus: z.string().optional(),
+      complianceRequirements: z.string().optional(),
+      securityScope: z.string().optional(),
+      provider: z.string().optional(),
+      threatLevel: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Perform security audit: ${args.task}${args.files && args.files.length > 0 ? `\n\nFiles to audit: ${args.files.join(', ')}` : ''}${args.focus ? ` (focus: ${args.focus})` : ''}${args.threatLevel ? ` (threat level: ${args.threatLevel})` : ''}${args.complianceRequirements && args.complianceRequirements.length > 0 ? `\n\nCompliance requirements: ${args.complianceRequirements.join(', ')}` : ''}${args.securityScope ? `\n\nApplication context: ${args.securityScope}` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
+        text: `Perform security audit: ${args.task}${args.files ? `\n\nFiles to audit: ${args.files}` : ''}${args.focus ? ` (focus: ${args.focus})` : ''}${args.threatLevel ? ` (threat level: ${args.threatLevel})` : ''}${args.complianceRequirements ? `\n\nCompliance requirements: ${args.complianceRequirements}` : ''}${args.securityScope ? `\n\nApplication context: ${args.securityScope}` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
       }
     }]
   }));
@@ -757,13 +791,19 @@ export function createServer() {
   server.registerPrompt("tracer", {
     title: "Code Tracer",
     description: "Trace execution flow and debug complex code relationships", 
-    argsSchema: TracerSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      traceMode: z.string().optional(),
+      targetDescription: z.string().optional(),
+      files: z.string().optional(),
+      provider: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Trace this code: ${args.task}${args.traceMode ? ` (trace mode: ${args.traceMode})` : ''}${args.targetDescription ? `\n\nTarget to trace: ${args.targetDescription}` : ''}${args.files && args.files.length > 0 ? `\n\nFocus on files: ${args.files.join(', ')}` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
+        text: `Trace this code: ${args.task}${args.traceMode ? ` (trace mode: ${args.traceMode})` : ''}${args.targetDescription ? `\n\nTarget to trace: ${args.targetDescription}` : ''}${args.files ? `\n\nFocus on files: ${args.files}` : ''}${args.provider ? ` (using ${args.provider} provider)` : ''}`
       }
     }]
   }));
@@ -772,13 +812,19 @@ export function createServer() {
   server.registerPrompt("ultra-review", {
     title: "Ultra Code Review",
     description: "Comprehensive step-by-step code review with detailed analysis",
-    argsSchema: CodeReviewSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      files: z.string().optional(),
+      focus: z.string().optional(),
+      stepNumber: z.string(),
+      totalSteps: z.string(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Perform comprehensive code review: ${args.task}${args.files && args.files.length > 0 ? `\n\nFiles to review: ${args.files.join(', ')}` : ''}${args.focus ? ` (focus: ${args.focus})` : ''} (Step ${args.stepNumber} of ${args.totalSteps})`
+        text: `Perform comprehensive code review: ${args.task}${args.files ? `\n\nFiles to review: ${args.files}` : ''}${args.focus ? ` (focus: ${args.focus})` : ''} (Step ${args.stepNumber} of ${args.totalSteps})`
       }
     }]
   }));
@@ -786,13 +832,19 @@ export function createServer() {
   server.registerPrompt("ultra-analyze", {
     title: "Ultra Code Analysis",
     description: "Deep step-by-step code analysis with architectural insights",
-    argsSchema: CodeAnalysisSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      files: z.string().optional(),
+      focus: z.string().optional(),
+      stepNumber: z.string(),
+      totalSteps: z.string(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Perform deep code analysis: ${args.task}${args.files && args.files.length > 0 ? `\n\nFiles to analyze: ${args.files.join(', ')}` : ''}${args.focus ? ` (focus: ${args.focus})` : ''} (Step ${args.stepNumber} of ${args.totalSteps})`
+        text: `Perform deep code analysis: ${args.task}${args.files ? `\n\nFiles to analyze: ${args.files}` : ''}${args.focus ? ` (focus: ${args.focus})` : ''} (Step ${args.stepNumber} of ${args.totalSteps})`
       }
     }]
   }));
@@ -800,13 +852,19 @@ export function createServer() {
   server.registerPrompt("ultra-debug", {
     title: "Ultra Debug Analysis",
     description: "Systematic step-by-step debugging with root cause analysis",
-    argsSchema: DebugSchema.shape,
+    argsSchema: {
+      issue: z.string(),
+      files: z.string().optional(),
+      symptoms: z.string().optional(),
+      stepNumber: z.string(),
+      totalSteps: z.string(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Debug this issue systematically: ${args.issue}${args.files && args.files.length > 0 ? `\n\nRelevant files: ${args.files.join(', ')}` : ''}${args.symptoms ? `\n\nSymptoms: ${args.symptoms}` : ''} (Step ${args.stepNumber} of ${args.totalSteps})`
+        text: `Debug this issue systematically: ${args.issue}${args.files ? `\n\nRelevant files: ${args.files}` : ''}${args.symptoms ? `\n\nSymptoms: ${args.symptoms}` : ''} (Step ${args.stepNumber} of ${args.totalSteps})`
       }
     }]
   }));
@@ -814,7 +872,13 @@ export function createServer() {
   server.registerPrompt("ultra-plan", {
     title: "Ultra Feature Planning",
     description: "Advanced multi-step feature planning with revisions and branches",
-    argsSchema: PlanSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      requirements: z.string().optional(),
+      scope: z.string().optional(),
+      stepNumber: z.string(),
+      totalSteps: z.string(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
@@ -828,13 +892,19 @@ export function createServer() {
   server.registerPrompt("ultra-docs", {
     title: "Ultra Documentation",
     description: "Comprehensive step-by-step documentation generation",
-    argsSchema: DocsSchema.shape,
+    argsSchema: {
+      task: z.string(),
+      files: z.string().optional(),
+      format: z.string().optional(),
+      stepNumber: z.string(),
+      totalSteps: z.string(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `Generate comprehensive documentation: ${args.task}${args.files && args.files.length > 0 ? `\n\nFiles to document: ${args.files.join(', ')}` : ''}${args.format ? ` (format: ${args.format})` : ''} (Step ${args.stepNumber} of ${args.totalSteps})`
+        text: `Generate comprehensive documentation: ${args.task}${args.files ? `\n\nFiles to document: ${args.files}` : ''}${args.format ? ` (format: ${args.format})` : ''} (Step ${args.stepNumber} of ${args.totalSteps})`
       }
     }]
   }));
@@ -843,7 +913,11 @@ export function createServer() {
   server.registerPrompt("index-vectors", {
     title: "Index Code Vectors",
     description: "Index project files for semantic search using vector embeddings",
-    argsSchema: IndexVectorsSchema.shape,
+    argsSchema: {
+      path: z.string().optional(),
+      provider: z.string().optional(),
+      force: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
@@ -857,7 +931,13 @@ export function createServer() {
   server.registerPrompt("search-vectors", {
     title: "Search Code Vectors",
     description: "Search indexed code files using natural language queries",
-    argsSchema: SearchVectorsSchema.shape,
+    argsSchema: {
+      query: z.string(),
+      path: z.string().optional(),
+      provider: z.string().optional(),
+      limit: z.string().optional(),
+      similarityThreshold: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
@@ -871,7 +951,9 @@ export function createServer() {
   server.registerPrompt("clear-vectors", {
     title: "Clear Code Vectors",
     description: "Clear all indexed vectors for a project",
-    argsSchema: ClearVectorsSchema.shape,
+    argsSchema: {
+      path: z.string().optional(),
+    },
   }, (args) => ({
     messages: [{
       role: "user",
@@ -889,7 +971,7 @@ export function createServer() {
     inputSchema: ZenChallengeSchema.shape,
   }, async (args) => {
     const provider = await getProviderManager();
-    return await handleChallenge(args, provider);
+    return await handleChallenge(args, provider) as any;
   });
 
   server.registerTool("ultra-continuation", {
@@ -898,7 +980,7 @@ export function createServer() {
     inputSchema: ZenContinuationSchema.shape,
   }, async (args) => {
     const provider = await getProviderManager();
-    return await handleContinuation(args, provider);
+    return await handleContinuation(args, provider) as any;
   });
 
   server.registerTool("ultra-session", {
@@ -906,7 +988,7 @@ export function createServer() {
     description: "Manage conversation sessions for persistent context and memory",
     inputSchema: ZenSessionSchema.shape,
   }, async (args) => {
-    return await handleSession(args);
+    return await handleSession(args) as any;
   });
 
   server.registerTool("ultra-budget", {
@@ -914,7 +996,7 @@ export function createServer() {
     description: "Set and monitor conversation budgets for cost and token control",
     inputSchema: ZenBudgetSchema.shape,
   }, async (args) => {
-    return await handleBudget(args);
+    return await handleBudget(args) as any;
   });
 
   // Register ultra tool prompts

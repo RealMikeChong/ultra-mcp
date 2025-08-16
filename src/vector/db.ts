@@ -24,7 +24,7 @@ export async function getVectorDB(projectPath: string): Promise<VectorDatabase> 
     const client = createClient({ url: `file:${dbPath}` });
     const db = drizzle(client);
     
-    // Run string-based migration to create tables and indexes
+    // Create main metadata table
     await db.run(`
       CREATE TABLE IF NOT EXISTS vector_chunks (
         id TEXT PRIMARY KEY,
@@ -32,12 +32,11 @@ export async function getVectorDB(projectPath: string): Promise<VectorDatabase> 
         chunk TEXT NOT NULL,
         hash TEXT NOT NULL,
         mtime_ms INTEGER NOT NULL,
-        embedding F32_BLOB(1536) NOT NULL,
         created_at INTEGER DEFAULT (unixepoch('now', 'subsec') * 1000)
       );
     `);
     
-    // Create regular indexes
+    // Create regular indexes on metadata table
     await db.run(`
       CREATE INDEX IF NOT EXISTS relpath_idx ON vector_chunks(relpath);
     `);
@@ -46,16 +45,26 @@ export async function getVectorDB(projectPath: string): Promise<VectorDatabase> 
       CREATE INDEX IF NOT EXISTS hash_idx ON vector_chunks(hash);
     `);
     
-    // Create vector index using libsql's built-in vector extension
+    // Create VSS virtual table for vector search
     try {
       await db.run(`
-        CREATE INDEX IF NOT EXISTS vec_idx 
-        ON vector_chunks(libsql_vector_idx(embedding, 'metric=cosine'));
+        CREATE VIRTUAL TABLE IF NOT EXISTS vss_vectors USING vss0(
+          embedding(1536)
+        );
       `);
       logger.log('Vector index created successfully');
     } catch (error) {
-      // Vector index might not be available in all libsql versions
-      logger.warn('Could not create vector index, will use fallback search:', error);
+      // VSS extension might not be available in all libsql versions
+      logger.warn('Could not create VSS virtual table, will use fallback search:', error);
+      // Fallback: add embedding column to main table for fallback search
+      try {
+        await db.run(`
+          ALTER TABLE vector_chunks ADD COLUMN embedding F32_BLOB(1536);
+        `);
+      } catch (alterError) {
+        // Column might already exist
+        logger.debug('Embedding column already exists or alter failed:', alterError);
+      }
     }
     
     return { db, client, path: dbPath };

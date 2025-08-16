@@ -127,25 +127,65 @@ export async function indexProject(options: IndexingOptions): Promise<IndexingRe
         const texts = batchChunks.map(c => c.chunk);
         const embeddings = await provider.getEmbeddings(texts);
         
-        // Store chunks with embeddings
+        // Store chunks with embeddings (dual-table approach)
         for (let j = 0; j < batchChunks.length; j++) {
           const chunk = batchChunks[j];
           const embedding = embeddings[j];
           
-          await client.execute({
-            sql: `INSERT OR REPLACE INTO vector_chunks (id, relpath, chunk, hash, mtime_ms, embedding)
-                  VALUES (?, ?, ?, ?, ?, vector(?))`,
-            args: [
-              chunk.id,
-              chunk.relpath,
-              chunk.chunk,
-              chunk.hash,
-              chunk.mtimeMs,
-              JSON.stringify(embedding),
-            ]
-          });
+          // Validate embedding dimensions
+          if (embedding.length !== 1536) {
+            logger.warn(`Embedding dimension mismatch for ${chunk.id}: expected 1536, got ${embedding.length}`);
+            continue;
+          }
           
-          chunksCreated++;
+          try {
+            // 1. Insert/update metadata in main table
+            const result = await client.execute({
+              sql: `INSERT OR REPLACE INTO vector_chunks (id, relpath, chunk, hash, mtime_ms)
+                    VALUES (?, ?, ?, ?, ?)`,
+              args: [
+                chunk.id,
+                chunk.relpath,
+                chunk.chunk,
+                chunk.hash,
+                chunk.mtimeMs,
+              ]
+            });
+            
+            // 2. Get the rowid for linking
+            const rowidResult = await client.execute({
+              sql: `SELECT rowid FROM vector_chunks WHERE id = ?`,
+              args: [chunk.id]
+            });
+            
+            if (rowidResult.rows.length > 0) {
+              const rowid = rowidResult.rows[0][0] as number;
+              
+              // 3. Try to insert into VSS virtual table
+              try {
+                // VSS requires DELETE before INSERT for updates
+                await client.execute({
+                  sql: `DELETE FROM vss_vectors WHERE rowid = ?`,
+                  args: [rowid]
+                });
+                
+                await client.execute({
+                  sql: `INSERT INTO vss_vectors (rowid, embedding) VALUES (?, ?)`,
+                  args: [rowid, new Float32Array(embedding).buffer]
+                });
+              } catch (vssError) {
+                // VSS not available, fallback to adding embedding to main table
+                await client.execute({
+                  sql: `UPDATE vector_chunks SET embedding = ? WHERE id = ?`,
+                  args: [float32ArrayToBuffer(embedding), chunk.id]
+                });
+              }
+              
+              chunksCreated++;
+            }
+          } catch (error) {
+            logger.error(`Error storing chunk ${chunk.id}:`, error);
+          }
         }
       } catch (error) {
         logger.error('Error generating embeddings:', error);

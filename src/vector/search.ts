@@ -37,27 +37,31 @@ export async function searchVectors(options: SearchOptions): Promise<SearchResul
     }>;
 
     try {
+      // Try VSS virtual table first
       const vectorResult = await client.execute({
-        sql: `SELECT vc.id, vc.relpath, vc.chunk, vc.embedding, vt.distance
-              FROM vector_top_k('vec_idx', vector(?), ?) vt
-              JOIN vector_chunks vc ON vc.id = vt.id
-              ORDER BY vt.distance`,
-        args: [JSON.stringify(queryEmbedding), limit]
+        sql: `SELECT vc.id, vc.relpath, vc.chunk, vs.distance
+              FROM vss_vectors vs
+              JOIN vector_chunks vc ON vc.rowid = vs.rowid
+              WHERE vss_search(vs.embedding, ?)
+              ORDER BY vs.distance
+              LIMIT ?`,
+        args: [new Float32Array(queryEmbedding).buffer, limit]
       });
 
       results = vectorResult.rows.map(row => ({
         id: row[0] as string,
         relpath: row[1] as string,
         chunk: row[2] as string,
-        embedding: row[3] as Buffer,
-        distance: row[4] as number,
+        embedding: Buffer.alloc(0), // Not needed for VSS results
+        distance: row[3] as number,
       }));
     } catch (error) {
       // Fallback to manual cosine similarity if vector extension not available
       logger.warn('Native vector search failed, using fallback:', error);
       
-      const fallbackResult = await client.execute({
-        sql: 'SELECT id, relpath, chunk, embedding FROM vector_chunks',
+      // Try to get embeddings from main table first (fallback storage)
+      let fallbackResult = await client.execute({
+        sql: 'SELECT id, relpath, chunk, embedding FROM vector_chunks WHERE embedding IS NOT NULL',
         args: []
       });
 
@@ -70,7 +74,11 @@ export async function searchVectors(options: SearchOptions): Promise<SearchResul
       
       // Calculate cosine similarity for each chunk
       const withSimilarity = allChunks.map(chunk => {
-        const chunkEmbedding = bufferToFloat32Array(chunk.embedding);
+        // Fix: libsql returns Uint8Array, need to access .buffer for Float32Array
+        const embedBuffer = chunk.embedding instanceof Buffer 
+          ? chunk.embedding 
+          : Buffer.from((chunk.embedding as Uint8Array).buffer);
+        const chunkEmbedding = bufferToFloat32Array(embedBuffer);
         const similarity = cosineSimilarity(queryEmbedding, Array.from(chunkEmbedding));
         return {
           ...chunk,
