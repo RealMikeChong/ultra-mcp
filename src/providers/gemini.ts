@@ -39,10 +39,11 @@ export class GeminiProvider implements AIProvider {
     const model = request.model || this.getDefaultModel();
     const startTime = Date.now();
     
-    // Enable Google Search by default for Gemini 2.5 Pro
-    const useSearchGrounding = request.useSearchGrounding !== undefined 
-      ? request.useSearchGrounding 
-      : model === "gemini-2.5-pro";
+    // Always enable Google Search by default (can be disabled via request)
+    const useSearchGrounding = request.useSearchGrounding !== false;
+    
+    // Always enable URL context by default (can be disabled via request)
+    const useUrlContext = request.useUrlContext !== false;
 
     // Track the request
     const requestId = await trackLLMRequest({
@@ -55,6 +56,7 @@ export class GeminiProvider implements AIProvider {
         temperature: request.temperature,
         maxOutputTokens: request.maxOutputTokens,
         useSearchGrounding,
+        useUrlContext,
       },
       startTime,
     });
@@ -62,25 +64,23 @@ export class GeminiProvider implements AIProvider {
     const google = createGoogleGenerativeAI({ apiKey, baseURL });
     const modelInstance = google(model);
     
-    type GenerateTextOptions = {
-      model: typeof modelInstance;
-      prompt: string;
-      temperature?: number;
-      maxOutputTokens?: number;
-      system?: string;
-      onFinish?: (result: {
-        text: string;
-        usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
-        finishReason?: string;
-      }) => Promise<void>;
-    };
+    // Always include both search and URL context tools
+    const tools: Record<string, any> = {};
+    
+    if (useSearchGrounding) {
+      tools.google_search = google.tools.googleSearch({});
+    }
+    
+    if (useUrlContext) {
+      tools.url_context = google.tools.urlContext({});
+    }
 
-    const options: GenerateTextOptions & { googleSearchGrounding?: boolean } = {
+    const options: any = {
       model: modelInstance,
       prompt: request.prompt,
       temperature: request.temperature,
       maxOutputTokens: request.maxOutputTokens,
-      googleSearchGrounding: useSearchGrounding,
+      tools: Object.keys(tools).length > 0 ? tools : undefined,
     };
 
     // Add system prompt if provided
@@ -115,6 +115,10 @@ export class GeminiProvider implements AIProvider {
         metadata: {
           ...result.providerMetadata,
           searchGroundingEnabled: useSearchGrounding,
+          urlContextEnabled: useUrlContext,
+          sources: result.sources,
+          groundingMetadata: result.providerMetadata?.google?.groundingMetadata,
+          urlContextMetadata: result.providerMetadata?.google?.urlContextMetadata,
         },
       };
     } catch (error) {
@@ -134,9 +138,11 @@ export class GeminiProvider implements AIProvider {
     const model = request.model || this.getDefaultModel();
     const startTime = Date.now();
     
-    const useSearchGrounding = request.useSearchGrounding !== undefined 
-      ? request.useSearchGrounding 
-      : model === "gemini-2.5-pro";
+    // Always enable Google Search by default (can be disabled via request)
+    const useSearchGrounding = request.useSearchGrounding !== false;
+    
+    // Always enable URL context by default (can be disabled via request)
+    const useUrlContext = request.useUrlContext !== false;
 
     // Track the request
     const requestId = await trackLLMRequest({
@@ -149,6 +155,7 @@ export class GeminiProvider implements AIProvider {
         temperature: request.temperature,
         maxOutputTokens: request.maxOutputTokens,
         useSearchGrounding,
+        useUrlContext,
       },
       startTime,
     });
@@ -156,12 +163,23 @@ export class GeminiProvider implements AIProvider {
     const google = createGoogleGenerativeAI({ apiKey, baseURL });
     const modelInstance = google(model);
     
+    // Always include both search and URL context tools
+    const tools: Record<string, any> = {};
+    
+    if (useSearchGrounding) {
+      tools.google_search = google.tools.googleSearch({});
+    }
+    
+    if (useUrlContext) {
+      tools.url_context = google.tools.urlContext({});
+    }
+    
     const options: any = {
       model: modelInstance,
       prompt: request.prompt,
       temperature: request.temperature,
       maxOutputTokens: request.maxOutputTokens,
-      googleSearchGrounding: useSearchGrounding,
+      tools: Object.keys(tools).length > 0 ? tools : undefined,
       onFinish: async (event: any) => {
         // Track completion using onFinish callback
         const usage = event.totalUsage ? {
